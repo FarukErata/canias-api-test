@@ -149,8 +149,8 @@ def get_items():
         
         table_name = data.get('TABLE')
 
-        # Start with the basic query
-        query = f"SELECT * FROM {table_name} WHERE 1=1"
+        # Start with the basic query without WHERE clause
+        query = f"SELECT * FROM {table_name}"
         params = []
         
         param_mapping = {
@@ -165,12 +165,20 @@ def get_items():
             'QUANTITY': 'QUANTITY'
         }
 
-        # Add filter conditions
+        # Filter out empty string parameters and build where clause
+        where_conditions = []
+        
         for param_name, column_name in param_mapping.items():
-            if param_name in data and data[param_name] is not None:
-                query += f" AND {column_name} = ?"
+            # Check if parameter exists and has a non-empty value
+            if param_name in data and data[param_name] and data[param_name] != "":
+                where_conditions.append(f"{column_name} = ?")
                 params.append(data[param_name])
         
+        # Add WHERE clause only if there are conditions
+        if where_conditions:
+            query += " WHERE " + " AND ".join(where_conditions)
+        
+        # Execute query
         conn = get_db_connection()
         result = conn.run(query, params)  # Pass params to prevent SQL injection
 
