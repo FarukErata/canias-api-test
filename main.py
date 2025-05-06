@@ -149,8 +149,7 @@ def get_items():
         
         table_name = data.get('TABLE')
 
-        # Start with the basic query without WHERE clause
-        query = f"SELECT * FROM {table_name}"
+        query = f'SELECT * FROM "{table_name}"'
         params = []
         
         param_mapping = {
