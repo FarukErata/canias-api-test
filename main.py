@@ -159,13 +159,14 @@ def get_items():
         # Get required filters for the specified table (or empty list if table not in mapping)
         required_filters = table_required_filters.get(table_name, [])
         
-        # Build the data query
-        query = f'SELECT * FROM "{table_name}"'
+        # Build the query directly with string formatting to avoid the row mapping issue
+        # This will return JSON directly from PostgreSQL
+        select_clause = "SELECT row_to_json(t) FROM (SELECT * FROM \"{}\") t".format(table_name)
+        query = select_clause
         params = []
         
-        # Add filters based on table type
+        # Add filters
         where_conditions = []
-        
         for column in required_filters:
             if column in data and data[column] and data[column] != "":
                 where_conditions.append(f'"{column}" = ?')
@@ -173,35 +174,26 @@ def get_items():
         
         # Add WHERE clause only if there are conditions
         if where_conditions:
-            query += " WHERE " + " AND ".join(where_conditions)
+            # Need to modify the query structure for WHERE with subquery
+            query = "SELECT row_to_json(t) FROM (SELECT * FROM \"{}\" WHERE ".format(table_name)
+            query += " AND ".join(where_conditions)
+            query += ") t"
         
         # Execute query
         conn = get_db_connection()
-        rows = conn.run(query, params)
+        result = conn.run(query, params)
         
-        # Get column names
-        column_query = f"""
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name = LOWER('{table_name}')
-            ORDER BY ordinal_position
-        """
-        column_results = conn.run(column_query)
-        columns = [col[0] for col in column_results]
-        
-        # Convert rows to dictionaries
-        items = []
-        for row in rows:
-            item = {}
-            for i, col in enumerate(columns):
-                if i < len(row):
-                    item[col] = row[i]
-            items.append(item)
+        # The result should be a list of JSON objects
+        items = [row[0] for row in result]
         
         return jsonify(items)
     
     except Exception as e:
-        return jsonify({'error': f'Database error: {str(e)}'}), 500
+        import traceback
+        return jsonify({
+            'error': f'Database error: {str(e)}',
+            'traceback': traceback.format_exc()
+        }), 500
 
 
 
