@@ -149,38 +149,65 @@ def get_items():
         
         table_name = data.get('TABLE')
         
-        # Where şartına koyulcak alanlar
+        # Define required filter columns based on table
         table_required_filters = {
             'IASSALHEAD': ['DOCTYPE', 'DOCNUM'],
             'IASSALITEM': ['DOCTYPE', 'DOCNUM', 'DOCITEM', 'MATERIAL'],
             'IASCUSTOMER': ['CUSTOMER', 'CUSTNAME']
         }
         
+        # Get required filters for the specified table (or empty list if table not in mapping)
         required_filters = table_required_filters.get(table_name, [])
         
-        # This will return JSON directly from PostgreSQL
-        select_clause = "SELECT row_to_json(t) FROM (SELECT * FROM \"{}\") t".format(table_name)
-        query = select_clause
+        # Build the data query
+        query = f'SELECT * FROM "{table_name}"'
         params = []
         
-        # Add filters
+        # Add filters based on table type
         where_conditions = []
+        
         for column in required_filters:
-            if column in data and data[column] and data[column] != "":
+            # Only add the condition if the parameter has a non-empty value
+            # Handle both string and numeric values
+            if column in data and data[column] is not None:
+                # For strings, check if they're non-empty
+                if isinstance(data[column], str) and data[column] == "":
+                    continue
+                
+                # For numbers, include them even if they're 0
                 where_conditions.append(f'"{column}" = ?')
                 params.append(data[column])
         
+        # Add WHERE clause only if there are conditions
         if where_conditions:
-            query = "SELECT row_to_json(t) FROM (SELECT * FROM \"{}\" WHERE ".format(table_name)
-            query += " AND ".join(where_conditions)
-            query += ") t"
+            query += " WHERE " + " AND ".join(where_conditions)
+        
+        # Print debug info
+        print(f"Query: {query}")
+        print(f"Params: {params}")
         
         # Execute query
         conn = get_db_connection()
-        result = conn.run(query, params)
+        rows = conn.run(query, params)
         
-        # The result should be a list of JSON objects
-        items = [row[0] for row in result]
+        # Get column names
+        column_query = f"""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = LOWER('{table_name}')
+            ORDER BY ordinal_position
+        """
+        column_results = conn.run(column_query)
+        columns = [col[0] for col in column_results]
+        
+        # Convert rows to dictionaries
+        items = []
+        for row in rows:
+            item = {}
+            for i, col in enumerate(columns):
+                if i < len(row):
+                    item[col] = row[i]
+            items.append(item)
         
         return jsonify(items)
     
