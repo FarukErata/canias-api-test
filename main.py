@@ -149,17 +149,15 @@ def get_items():
         
         table_name = data.get('TABLE')
         
-        # Define required filter columns based on table
+        # Where şartına koyulcak alanlar
         table_required_filters = {
             'IASSALHEAD': ['DOCTYPE', 'DOCNUM'],
             'IASSALITEM': ['DOCTYPE', 'DOCNUM', 'DOCITEM', 'MATERIAL'],
             'IASCUSTOMER': ['CUSTOMER', 'CUSTNAME']
         }
         
-        # Get required filters for the specified table (or empty list if table not in mapping)
         required_filters = table_required_filters.get(table_name, [])
         
-        # Build the query directly with string formatting to avoid the row mapping issue
         # This will return JSON directly from PostgreSQL
         select_clause = "SELECT row_to_json(t) FROM (SELECT * FROM \"{}\") t".format(table_name)
         query = select_clause
@@ -172,9 +170,7 @@ def get_items():
                 where_conditions.append(f'"{column}" = ?')
                 params.append(data[column])
         
-        # Add WHERE clause only if there are conditions
         if where_conditions:
-            # Need to modify the query structure for WHERE with subquery
             query = "SELECT row_to_json(t) FROM (SELECT * FROM \"{}\" WHERE ".format(table_name)
             query += " AND ".join(where_conditions)
             query += ") t"
