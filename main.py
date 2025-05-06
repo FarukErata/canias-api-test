@@ -287,10 +287,10 @@ def serve_swagger_spec():
                         "type": "string"
                     },
                     "DOCTYPE": {
-                        "type": "text"
+                        "type": "string"
                     },
                     "DOCNUM": {
-                        "type": "text"
+                        "type": "string"
                     },
                     "DOCITEM": {
                         "type": "integer"
