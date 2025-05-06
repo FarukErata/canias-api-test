@@ -288,25 +288,25 @@ def serve_swagger_spec():
                         "type": "string"
                     },
                     "DOCTYPE": {
-                        "type": "string"
+                        "type": "text"
                     },
                     "DOCNUM": {
-                        "type": "string"
+                        "type": "text"
                     },
                     "DOCITEM": {
-                        "type": "string"
+                        "type": "integer"
                     },
                     "CUSTOMER": {
                         "type": "string"
                     },
                     "CUSTNAME": {
-                        "type": "string"
+                        "type": "integer"
                     },
                     "MATERIAL": {
                         "type": "string"
                     },
                     "QUANTITY": {
-                        "type": "string"
+                        "type": "integer"
                     }
                 }
             }
