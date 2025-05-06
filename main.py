@@ -34,6 +34,14 @@ def get_db_connection():
         host = os.environ.get('POSTGRES_HOST')
         database = os.environ.get('PGDATABASE')
 
+        # Check if required parameters are present
+        if not user or not password or not host or not database:
+            raise ValueError(
+                f"Missing required database parameters: "
+                f"user={bool(user)}, password={bool(password)}, "
+                f"host={bool(host)}, database={bool(database)}"
+            )
+
         # Use default port 5432 if not specified
         port = int(os.environ.get('NEON_PORT', '5432'))
         
@@ -91,7 +99,7 @@ def api_info():
         },
         {
             'path': '/api/salservice',
-            'method': 'GET',
+            'method': 'POST',
             'description': 'Get sal info'
         }
        
@@ -126,10 +134,14 @@ def health_check():
             'timestamp': datetime.now().isoformat()
         }), 500
 
-# Get all items
-@app.route('/api/salservice', methods=['GET'])
+
+@app.route('/api/salservice', methods=['POST'])
 def get_items():
     try:
+        # Check if the request has JSON data
+        if not request.is_json:
+            return jsonify({'error': 'Request must be JSON'}), 400
+            
         data = request.get_json()
 
         if 'TABLE' not in data or not data.get('TABLE'):
@@ -137,6 +149,7 @@ def get_items():
         
         table_name = data.get('TABLE')
 
+        # Start with the basic query
         query = f"SELECT * FROM {table_name} WHERE 1=1"
         params = []
         
@@ -152,21 +165,16 @@ def get_items():
             'QUANTITY': 'QUANTITY'
         }
 
-        query=f"SELECT * FROM {table_name}"
-
+        # Add filter conditions
         for param_name, column_name in param_mapping.items():
             if param_name in data and data[param_name] is not None:
                 query += f" AND {column_name} = ?"
                 params.append(data[param_name])
-
-       
         
-
         conn = get_db_connection()
-        result = conn.run(query)
+        result = conn.run(query, params)  # Pass params to prevent SQL injection
 
         columns = [column[0] for column in result.description]
-
         items = query_to_dict_list(result, columns)
 
         return jsonify(items)
@@ -180,76 +188,74 @@ def get_items():
 @app.route('/static/swagger.json')
 def serve_swagger_spec():
     swagger_spec = {
-        "swagger": "2.0",
-        "info": {
-            "version": "1.0.0",
-            "title": "Canias AI Test API",
-            "description": "A simple RESTful API with NeonDB integration using pg8000"
-        },
-        "basePath": "/",
-        "schemes": ["https"],
-        "consumes": ["application/json"],
-        "produces": ["application/json"],
+        # ... existing code ...
         "paths": {
-            "/": {
-                "get": {
-                    "summary": "Redirects to Swagger UI documentation",
-                    "produces": ["application/json"],
-                    "responses": {
-                        "302": {
-                            "description": "Redirect to Swagger UI"
-                        }
-                    }
-                }
-            },
-            "/api/info": {
-                "get": {
-                    "summary": "Get API information and endpoints",
-                    "produces": ["application/json"],
-                    "responses": {
-                        "200": {
-                            "description": "Successful operation"
-                        }
-                    }
-                }
-            },
-            "/health": {
-                "get": {
-                    "summary": "Health check endpoint",
-                    "produces": ["application/json"],
-                    "responses": {
-                        "200": {
-                            "description": "Successful operation"
-                        }
-                    }
-                }
-            },
+            # ... existing paths ...
             "/api/salservice": {
-                "get": {
-                    "summary": "Get all items",
+                "post": {  # Changed from "get" to "post"
+                    "summary": "Query database table with filters",
                     "produces": ["application/json"],
+                    "consumes": ["application/json"],
+                    "parameters": [
+                        {
+                            "in": "body",
+                            "name": "body",
+                            "description": "Query parameters",
+                            "required": true,
+                            "schema": {
+                                "$ref": "#/definitions/SalServiceParams"
+                            }
+                        }
+                    ],
                     "responses": {
                         "200": {
                             "description": "Successful operation"
+                        },
+                        "400": {
+                            "description": "Bad request"
+                        },
+                        "500": {
+                            "description": "Server error"
                         }
                     }
                 }
             }
         },
         "definitions": {
-            "Params": {
+            # ... existing definitions ...
+            "SalServiceParams": {
                 "type": "object",
+                "required": ["TABLE"],
                 "properties": {
-                    "servicename": {
+                    "TABLE": {
+                        "type": "string",
+                        "description": "Table name to query"
+                    },
+                    "USERNAME": {
                         "type": "string"
                     },
-                    "username": {
+                    "PASSWORD": {
                         "type": "string"
                     },
-                    "password": {
+                    "DOCTYPE": {
                         "type": "string"
                     },
-                    "created_at": {
+                    "DOCNUM": {
+                        "type": "string"
+                    },
+                    "DOCITEM": {
+                        "type": "string"
+                    },
+                    "CUSTOMER": {
+                        "type": "string"
+                    },
+                    "CUSTNAME": {
+                        "type": "string"
+                    },
+                    "MATERIAL": {
+                        "type": "string"
+                    },
+                    "QUANTITY": {
                         "type": "string"
                     }
                 }
