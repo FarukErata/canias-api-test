@@ -148,29 +148,28 @@ def get_items():
             return jsonify({'error': 'Missing required parameter: TABLE'}), 400
         
         table_name = data.get('TABLE')
-
-        # Start with the basic query without WHERE clause
+        
+        # Define required filter columns based on table
+        table_required_filters = {
+            'IASSALHEAD': ['DOCTYPE', 'DOCNUM'],
+            'IASSALITEM': ['DOCTYPE', 'DOCNUM', 'DOCITEM', 'MATERIAL'],
+            'IASCUSTOMER': ['CUSTOMER', 'CUSTNAME']
+        }
+        
+        # Get required filters for the specified table (or empty list if table not in mapping)
+        required_filters = table_required_filters.get(table_name, [])
+        
+        # Build the data query
         query = f'SELECT * FROM "{table_name}"'
         params = []
         
-        param_mapping = {
-            'USERNAME': 'USERNAME',
-            'PASSWORD': 'PASSWORD', 
-            'DOCTYPE': 'DOCTYPE',
-            'DOCNUM': 'DOCNUM',
-            'DOCITEM': 'DOCITEM',
-            'CUSTOMER': 'CUSTOMER',
-            'CUSTNAME': 'CUSTNAME',
-            'MATERIAL': 'MATERIAL'
-        }
-
-        # Filter out empty string parameters and build where clause
+        # Add filters based on table type
         where_conditions = []
         
-        for param_name, column_name in param_mapping.items():
-            if param_name in data and data[param_name] and data[param_name] != "":
-                where_conditions.append(f'"{column_name}" = ?')
-                params.append(data[param_name])
+        for column in required_filters:
+            if column in data and data[column] and data[column] != "":
+                where_conditions.append(f'"{column}" = ?')
+                params.append(data[column])
         
         # Add WHERE clause only if there are conditions
         if where_conditions:
@@ -180,17 +179,17 @@ def get_items():
         conn = get_db_connection()
         rows = conn.run(query, params)
         
-        # Get column names by directly querying the database schema
-        meta_query = f"""
+        # Get column names
+        column_query = f"""
             SELECT column_name 
             FROM information_schema.columns 
-            WHERE table_name = '{table_name.lower()}'
+            WHERE table_name = LOWER('{table_name}')
             ORDER BY ordinal_position
         """
-        column_data = conn.run(meta_query)
-        columns = [col[0] for col in column_data]
+        column_results = conn.run(column_query)
+        columns = [col[0] for col in column_results]
         
-        # Convert rows to dictionaries using these column names
+        # Convert rows to dictionaries
         items = []
         for row in rows:
             item = {}
