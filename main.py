@@ -161,8 +161,7 @@ def get_items():
             'DOCITEM': 'DOCITEM',
             'CUSTOMER': 'CUSTOMER',
             'CUSTNAME': 'CUSTNAME',
-            'MATERIAL': 'MATERIAL',
-            'QUANTITY': 'QUANTITY'
+            'MATERIAL': 'MATERIAL'
         }
 
         # Filter out empty string parameters and build where clause
@@ -300,13 +299,10 @@ def serve_swagger_spec():
                         "type": "string"
                     },
                     "CUSTNAME": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "MATERIAL": {
                         "type": "string"
-                    },
-                    "QUANTITY": {
-                        "type": "integer"
                     }
                 }
             }
