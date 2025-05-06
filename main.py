@@ -149,7 +149,8 @@ def get_items():
         
         table_name = data.get('TABLE')
 
-        query = f'SELECT * FROM "{table_name}"'
+        # Start with the basic query without WHERE clause
+        query = f'SELECT * FROM "{table_name}"'  # Use quotes for case-sensitivity
         params = []
         
         param_mapping = {
@@ -169,7 +170,7 @@ def get_items():
         for param_name, column_name in param_mapping.items():
             # Check if parameter exists and has a non-empty value
             if param_name in data and data[param_name] and data[param_name] != "":
-                where_conditions.append(f"{column_name} = ?")
+                where_conditions.append(f'"{column_name}" = ?')  # Quote column names too
                 params.append(data[param_name])
         
         # Add WHERE clause only if there are conditions
@@ -178,13 +179,44 @@ def get_items():
         
         # Execute query
         conn = get_db_connection()
-        result = conn.run(query, params)  # Pass params to prevent SQL injection
-
-        columns = [column[0] for column in result.description]
-        items = query_to_dict_list(result, columns)
-
-        return jsonify(items)
-    
+        try:
+            # pg8000.native returns rows directly, we need to handle this differently
+            rows = conn.run(query, params)
+            
+            # Get column names using a separate query
+            column_info = conn.run(f'SELECT * FROM "{table_name}" WHERE 1=0')
+            
+            # For pg8000.native, we need to handle the column info separately
+            # If this fails, try a different approach below
+            columns = [desc[0] for desc in column_info.description]
+            
+            # Convert rows to list of dictionaries
+            items = []
+            for row in rows:
+                item = {}
+                for i, col in enumerate(columns):
+                    item[col] = row[i]
+                items.append(item)
+                
+            return jsonify(items)
+            
+        except AttributeError:
+            # Alternative approach if the above fails
+            # First, get column names
+            columns_query = f'SELECT column_name FROM information_schema.columns WHERE table_name = \'{table_name.lower()}\''
+            columns = [col[0] for col in conn.run(columns_query)]
+            
+            # Then convert rows to dictionaries using these column names
+            items = []
+            for row in rows:
+                item = {}
+                for i, col in enumerate(columns):
+                    if i < len(row):
+                        item[col] = row[i]
+                items.append(item)
+                
+            return jsonify(items)
+            
     except Exception as e:
         return jsonify({'error': f'Database error: {str(e)}'}), 500
 
