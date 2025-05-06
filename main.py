@@ -184,13 +184,56 @@ def get_items():
 
 
 
-# Serve the swagger.json file
 @app.route('/static/swagger.json')
 def serve_swagger_spec():
     swagger_spec = {
-        # ... existing code ...
+        "swagger": "2.0",  # This is correct and should be kept
+        "info": {
+            "version": "1.0.0",
+            "title": "Canias AI Test API",
+            "description": "A simple RESTful API with NeonDB integration using pg8000"
+        },
+        "basePath": "/",
+        "schemes": ["https", "http"],  # Added http for local development
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
         "paths": {
-            # ... existing paths ...
+            "/": {
+                "get": {
+                    "summary": "Redirects to Swagger UI documentation",
+                    "produces": ["application/json"],
+                    "responses": {
+                        "302": {
+                            "description": "Redirect to Swagger UI"
+                        }
+                    }
+                }
+            },
+            "/api/info": {
+                "get": {
+                    "summary": "Get API information and endpoints",
+                    "produces": ["application/json"],
+                    "responses": {
+                        "200": {
+                            "description": "Successful operation"
+                        }
+                    }
+                }
+            },
+            "/health": {
+                "get": {
+                    "summary": "Health check endpoint",
+                    "produces": ["application/json"],
+                    "responses": {
+                        "200": {
+                            "description": "Successful operation"
+                        },
+                        "500": {
+                            "description": "Server error"
+                        }
+                    }
+                }
+            },
             "/api/salservice": {
                 "post": {  # Changed from "get" to "post"
                     "summary": "Query database table with filters",
@@ -201,7 +244,7 @@ def serve_swagger_spec():
                             "in": "body",
                             "name": "body",
                             "description": "Query parameters",
-                            "required": True,
+                            "required": True,  # Changed from true to True for Python
                             "schema": {
                                 "$ref": "#/definitions/SalServiceParams"
                             }
@@ -222,7 +265,6 @@ def serve_swagger_spec():
             }
         },
         "definitions": {
-            # ... existing definitions ...
             "SalServiceParams": {
                 "type": "object",
                 "required": ["TABLE"],
