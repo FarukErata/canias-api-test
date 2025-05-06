@@ -201,7 +201,7 @@ def serve_swagger_spec():
                             "in": "body",
                             "name": "body",
                             "description": "Query parameters",
-                            "required": true,
+                            "required": True,
                             "schema": {
                                 "$ref": "#/definitions/SalServiceParams"
                             }
