@@ -158,29 +158,48 @@ def get_items():
         
         required_filters = table_required_filters.get(table_name, [])
         
-        # This will return JSON directly from PostgreSQL
-        select_clause = "SELECT row_to_json(t) FROM (SELECT * FROM \"{}\") t".format(table_name)
-        query = select_clause
+        # Build basic query without WHERE clause first
+        query = f'SELECT * FROM "{table_name}"'
         params = []
         
         # Add filters
         where_conditions = []
         for column in required_filters:
-            if column in data and data[column] and data[column] != "":
+            # For numeric parameters like DOCITEM, check differently
+            if column == 'DOCITEM' and 'DOCITEM' in data and isinstance(data['DOCITEM'], int):
+                where_conditions.append(f'"{column}" = ?')
+                params.append(data['DOCITEM'])
+            # For string parameters, only add if non-empty
+            elif column in data and isinstance(data[column], str) and data[column] != "":
                 where_conditions.append(f'"{column}" = ?')
                 params.append(data[column])
         
+        # Add WHERE clause only if there are conditions
         if where_conditions:
-            query = "SELECT row_to_json(t) FROM (SELECT * FROM \"{}\" WHERE ".format(table_name)
-            query += " AND ".join(where_conditions)
-            query += ") t"
+            query += " WHERE " + " AND ".join(where_conditions)
         
         # Execute query
         conn = get_db_connection()
-        result = conn.run(query, params)
+        rows = conn.run(query, params)
         
-        # The result should be a list of JSON objects
-        items = [row[0] for row in result]
+        # Convert rows to dictionaries
+        columns_query = f"""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = LOWER('{table_name}')
+            ORDER BY ordinal_position
+        """
+        columns_result = conn.run(columns_query)
+        columns = [col[0] for col in columns_result]
+        
+        # Convert to JSON format
+        items = []
+        for row in rows:
+            item = {}
+            for i, col in enumerate(columns):
+                if i < len(row):
+                    item[col] = row[i]
+            items.append(item)
         
         return jsonify(items)
     
