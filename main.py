@@ -195,66 +195,66 @@ def get_items():
         conn = get_db_connection()
         rows = conn.run(query, params)
         
-        print(f"Rows returned: {len(rows)}")  # Log number of rows returned
-        if rows:
-            print(f"First row sample: {rows[0]}")  # Log first row as sample
-        
-        # Try to get tables available in the database
-        tables_query = "SELECT schemaname, tablename FROM pg_tables"
-        tables = conn.run(tables_query)
-        
-        # Convert rows to dictionaries
-        columns_query = f"""
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name = LOWER('{table_name}')
-            ORDER BY ordinal_position
-        """
-        columns_result = conn.run(columns_query)
-        columns = [col[0] for col in columns_result]
-        
-        # If no columns found, try alternative method
-        if not columns:
-            print("No columns found, trying alternative method")
+        # Get the actual column names from the database
+        # Use a direct query on the table to get column information
+        desc_query = f'SELECT * FROM "{table_name}" LIMIT 0'
+        try:
+            # This might not work with pg8000.native
+            desc_result = conn.run(desc_query)
+            if hasattr(desc_result, 'description'):
+                columns = [col[0] for col in desc_result.description]
+            else:
+                raise AttributeError("No description attribute")
+        except Exception as e:
+            print(f"Error getting columns from direct query: {e}")
+            
+            # Try using pg_attribute to get column names (more reliable)
             try:
-                alt_columns_query = f"""
-                    SELECT attname FROM pg_attribute 
-                    WHERE attrelid = (SELECT oid FROM pg_class WHERE relname = LOWER('{table_name}'))
-                    AND attnum > 0 AND NOT attisdropped
-                    ORDER BY attnum
+                columns_query = f"""
+                    SELECT a.attname
+                    FROM pg_catalog.pg_attribute a
+                    JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
+                    WHERE c.relname = LOWER('{table_name}')
+                    AND a.attnum > 0
+                    AND NOT a.attisdropped
+                    ORDER BY a.attnum
                 """
-                alt_columns_result = conn.run(alt_columns_query)
-                columns = [col[0] for col in alt_columns_result]
-                print(f"Alternative columns method result: {columns}")
-            except Exception as e:
-                print(f"Alternative columns method error: {e}")
+                columns_result = conn.run(columns_query)
+                columns = [col[0] for col in columns_result]
+            except Exception as e2:
+                print(f"Error getting columns from pg_attribute: {e2}")
+                # Fallback to required filters as column names
+                columns = required_filters
         
-        # If still no columns, use required filters as fallback
-        if not columns:
-            print("Using required filters as fallback column names")
-            columns = required_filters
+        print(f"Actual columns from DB: {columns}")
         
-        # Convert to JSON format
+        # Filter to just the columns we care about for the response
+        filtered_columns = required_filters
+        
+        # Convert to JSON format with only the required columns
         items = []
         for row in rows:
             item = {}
-            for i, col in enumerate(columns):
-                if i < len(row):
-                    item[col] = row[i]
+            # Map row values to column names
+            row_dict = {columns[i]: row[i] for i in range(min(len(columns), len(row)))}
+            
+            # Extract only the required columns
+            for col in filtered_columns:
+                item[col] = row_dict.get(col)
+            
             items.append(item)
         
-        
-        # Include debug info in the response
         return jsonify({
             "items": items,
             "debug": {
                 "parameterized_query": query,
-                "params": params,
                 "manual_query": manual_query,
+                "params": params,
                 "row_count": len(rows),
-                "columns": columns,
+                "actual_columns": columns,
+                "filtered_columns": filtered_columns,
                 "first_row_raw": str(rows[0]) if rows else None,
-                "available_tables_sample": [f"{t[0]}.{t[1]}" for t in tables[:5]]
+                "first_row_dict": {columns[i]: row[0][i] for i in range(min(len(columns), len(row[0])))} if rows else None
             }
         })
     
