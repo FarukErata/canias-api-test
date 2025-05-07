@@ -189,7 +189,7 @@ def get_items():
         columns_query = f"""
             SELECT column_name 
             FROM information_schema.columns 
-            WHERE table_name = LOWER('{table_name}')
+            WHERE table_name = '{table_name}'
             ORDER BY ordinal_position
         """
         columns_result = conn.run(columns_query)
