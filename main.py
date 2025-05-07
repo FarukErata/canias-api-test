@@ -148,6 +148,11 @@ def get_items():
         
         table_name = data.get('TABLE')
         
+        # Validate table name against allowed tables only
+        allowed_tables = ['IASSALHEAD', 'IASSALITEM', 'IASCUSTOMER']
+        if table_name not in allowed_tables:
+            return jsonify({'error': 'Invalid table name'}), 400
+        
         table_required_filters = {
             'IASSALHEAD': ['DOCTYPE', 'DOCNUM'],
             'IASSALITEM': ['DOCTYPE', 'DOCNUM', 'DOCITEM', 'MATERIAL'],
@@ -162,22 +167,30 @@ def get_items():
         
         actual_columns = table_columns.get(table_name, [])
         required_filters = table_required_filters.get(table_name, [])
-        print(required_filters)
+        
         query = f'SELECT * FROM "{table_name}"'
+        query+=' WHERE 1=1'
         params = []
         
-        where_conditions = "WHERE 1=1 "
+        where_conditions = []
         for column in required_filters:
             if column == 'DOCITEM' and 'DOCITEM' in data and isinstance(data['DOCITEM'], int) and data['DOCITEM'] != 0:
-                where_conditions+='AND "DOCITEM" = '+data['DOCITEM']
+                where_conditions.append(f'"{column}" = ?')
+                values="'"+data['DOCITEM']+"'"
+                params.append(values)
             elif column in data and isinstance(data[column], str) and data[column] != "":
-                where_conditions+='AND "'+column+'" = \''+data[column]+'\''
+                where_conditions.append(f'"{column}" = ?')
+                values="'"+data[column]+"'"
+                params.append(values)
         
+        if where_conditions:
+            query +=" AND ".join(where_conditions)
         
-        query+=where_conditions
-        print(query)
+        print(f"Secure query: {query}")
+        print(f"With params: {params}")
+        
         conn = get_db_connection()
-        rows = conn.run(query)
+        rows = conn.run(query, params)
         
         items = []
         for row in rows:
@@ -197,7 +210,6 @@ def get_items():
             'error': f'Database error: {error_msg}',
             'traceback': trace
         }), 500
-
 
 @app.route('/static/swagger.json')
 def serve_swagger_spec():
