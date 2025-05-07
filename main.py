@@ -166,19 +166,18 @@ def get_items():
         query = f'SELECT * FROM "{table_name}"'
         params = []
         
-        where_conditions = []
+        where_conditions = "WHERE 1=1 "
         for column in required_filters:
             if column == 'DOCITEM' and 'DOCITEM' in data and isinstance(data['DOCITEM'], int) and data['DOCITEM'] != 0:
-                where_conditions.append(f'"{column}" = '+data[column])
+                where_conditions+='AND DOCITEM = '+data['DOCITEM']
             elif column in data and isinstance(data[column], str) and data[column] != "":
-                where_conditions.append(f'"{column}" = '+data[column])
+                where_conditions+='AND '+column+' = '+data[column]
         
-        if where_conditions:
-            query += " WHERE 1=1 "+ " AND ".join(where_conditions)
+        
         
         print(query)
         conn = get_db_connection()
-        rows = conn.run(query, params)
+        rows = conn.run(query)
         
         items = []
         for row in rows:
