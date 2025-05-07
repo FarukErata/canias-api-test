@@ -143,6 +143,7 @@ def get_items():
             return jsonify({'error': 'Request must be JSON'}), 400
             
         data = request.get_json()
+        print(f"Request data: {data}")
 
         if 'TABLE' not in data or not data.get('TABLE'):
             return jsonify({'error': 'Missing required parameter: TABLE'}), 400
@@ -188,82 +189,74 @@ def get_items():
         if where_manual_conditions:
             manual_query += " WHERE " + " AND ".join(where_manual_conditions)
         
-        print(f"Parameterized query: {query}")  # Log the final SQL query
-        print(f"Manual query: {manual_query}")  # Log the manual query with values
-        
         # Execute query
         conn = get_db_connection()
         rows = conn.run(query, params)
         
-        # Get the actual column names from the database
-        # Use a direct query on the table to get column information
-        desc_query = f'SELECT * FROM "{table_name}" LIMIT 0'
-        try:
-            # This might not work with pg8000.native
-            desc_result = conn.run(desc_query)
-            if hasattr(desc_result, 'description'):
-                columns = [col[0] for col in desc_result.description]
-            else:
-                raise AttributeError("No description attribute")
-        except Exception as e:
-            print(f"Error getting columns from direct query: {e}")
+        # Try to get the actual column names
+        columns_query = f"""
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = LOWER('{table_name}')
+            ORDER BY ordinal_position
+        """
+        columns_result = conn.run(columns_query)
+        db_columns = [col[0] for col in columns_result]
+        
+        # If we couldn't get columns from the database, use required_filters
+        if not db_columns:
+            db_columns = required_filters
             
-            # Try using pg_attribute to get column names (more reliable)
-            try:
-                columns_query = f"""
-                    SELECT a.attname
-                    FROM pg_catalog.pg_attribute a
-                    JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
-                    WHERE c.relname = LOWER('{table_name}')
-                    AND a.attnum > 0
-                    AND NOT a.attisdropped
-                    ORDER BY a.attnum
-                """
-                columns_result = conn.run(columns_query)
-                columns = [col[0] for col in columns_result]
-            except Exception as e2:
-                print(f"Error getting columns from pg_attribute: {e2}")
-                # Fallback to required filters as column names
-                columns = required_filters
+        # We'll use the required columns for our response
+        result_columns = required_filters
         
-        print(f"Actual columns from DB: {columns}")
-        
-        # Filter to just the columns we care about for the response
-        filtered_columns = required_filters
-        
-        # Convert to JSON format with only the required columns
+        # Convert to JSON format - safer approach
         items = []
         for row in rows:
             item = {}
-            # Map row values to column names
-            row_dict = {columns[i]: row[i] for i in range(min(len(columns), len(row)))}
-            
-            # Extract only the required columns
-            for col in filtered_columns:
-                item[col] = row_dict.get(col)
-            
+            # Map each column safely
+            for i, col_name in enumerate(result_columns):
+                # Find the position of this column in the db_columns list if possible
+                try:
+                    db_index = db_columns.index(col_name)
+                    # If this index exists in the row, use it
+                    if db_index < len(row):
+                        item[col_name] = row[db_index]
+                    else:
+                        item[col_name] = None
+                except ValueError:
+                    # Column not found in db_columns
+                    # As a fallback, try to use positional mapping if the index is within range
+                    if i < len(row):
+                        item[col_name] = row[i]
+                    else:
+                        item[col_name] = None
             items.append(item)
+        
+        # Build safe debug info that won't cause errors
+        debug_info = {
+            "parameterized_query": query,
+            "manual_query": manual_query,
+            "params": params,
+            "row_count": len(rows),
+            "db_columns": db_columns,
+            "result_columns": result_columns,
+            "first_row_raw": str(rows[0]) if rows else None
+        }
+        
+        # Don't try to create a dict from the row, just include the raw data
         
         return jsonify({
             "items": items,
-            "debug": {
-                "parameterized_query": query,
-                "manual_query": manual_query,
-                "params": params,
-                "row_count": len(rows),
-                "actual_columns": columns,
-                "filtered_columns": filtered_columns,
-                "first_row_raw": str(rows[0]) if rows else None,
-                "first_row_dict": {columns[i]: row[0][i] for i in range(min(len(columns), len(row[0])))} if rows else None
-            }
+            "debug": debug_info
         })
     
     except Exception as e:
         import traceback
         error_msg = str(e)
         trace = traceback.format_exc()
-        print(f"Error: {error_msg}")  # Log the error
-        print(f"Traceback: {trace}")  # Log the traceback
+        print(f"Error: {error_msg}")
+        print(f"Traceback: {trace}")
         return jsonify({
             'error': f'Database error: {error_msg}',
             'traceback': trace
