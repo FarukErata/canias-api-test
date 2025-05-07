@@ -179,7 +179,7 @@ def get_items():
             query += " WHERE " + " AND ".join(where_conditions)
         
         
-
+        print(f"query: {query}")
         # Execute query
         conn = get_db_connection()
         
