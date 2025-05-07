@@ -169,15 +169,14 @@ def get_items():
         where_conditions = []
         for column in required_filters:
             if column == 'DOCITEM' and 'DOCITEM' in data and isinstance(data['DOCITEM'], int) and data['DOCITEM'] != 0:
-                where_conditions.append(f'"{column}" = ?')
-                params.append(data['DOCITEM'])
+                where_conditions.append(f'"{column}" = '+data[column])
             elif column in data and isinstance(data[column], str) and data[column] != "":
-                where_conditions.append(f'"{column}" = ?')
-                params.append(data[column])
+                where_conditions.append(f'"{column}" = '+data[column])
         
         if where_conditions:
             query += " WHERE 1=1 "+ " AND ".join(where_conditions)
         
+        print(query)
         conn = get_db_connection()
         rows = conn.run(query, params)
         
