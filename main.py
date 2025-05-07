@@ -168,24 +168,21 @@ def get_items():
         actual_columns = table_columns.get(table_name, [])
         required_filters = table_required_filters.get(table_name, [])
         
-        # Start with the base query
+        # Build the query directly with string interpolation
         query = f'SELECT * FROM "{table_name}" WHERE 1=1'
-        params = []
         
-        # Add each condition directly to the query
         for column in required_filters:
             if column == 'DOCITEM' and 'DOCITEM' in data and isinstance(data['DOCITEM'], int) and data['DOCITEM'] != 0:
-                query += f' AND "{column}" = ?'
-                params.append(data['DOCITEM'])  # Send the raw integer value
+                query += f' AND "{column}" = {data["DOCITEM"]}'
             elif column in data and isinstance(data[column], str) and data[column] != "":
-                query += f' AND "{column}" = ?'
-                params.append(data[column])  # Send the raw string value
+                # Escape single quotes in string values
+                safe_value = data[column].replace("'", "''")
+                query += f' AND "{column}" = \'{safe_value}\''
         
-        print(f"Secure query: {query}")
-        print(f"With params: {params}")
+        print(f"Direct query: {query}")
         
         conn = get_db_connection()
-        rows = conn.run(query, params)
+        rows = conn.run(query)
         
         items = []
         for row in rows:
