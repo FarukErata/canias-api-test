@@ -178,8 +178,8 @@ def get_items():
         if where_conditions:
             query += " WHERE " + " AND ".join(where_conditions)
         
-        print(f"Final query: {query}")
         
+
         # Execute query
         conn = get_db_connection()
         
@@ -194,6 +194,7 @@ def get_items():
         """
         columns_result = conn.run(columns_query)
         columns = [col[0] for col in columns_result]
+        print(f"Columns from DB: {columns}")
         
         # Convert to JSON format
         items = []
