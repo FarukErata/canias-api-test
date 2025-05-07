@@ -171,13 +171,10 @@ def get_items():
             if column == 'DOCITEM' and 'DOCITEM' in data and isinstance(data['DOCITEM'], int) and data['DOCITEM'] != 0:
                 where_conditions+='AND DOCITEM = '+data['DOCITEM']
             elif column in data and isinstance(data[column], str) and data[column] != "":
-                print("in")
                 where_conditions+='AND '+column+' = '+data[column]
-            else :
-                print("out")
         
         
-        
+        query+=where_conditions
         print(query)
         conn = get_db_connection()
         rows = conn.run(query)
