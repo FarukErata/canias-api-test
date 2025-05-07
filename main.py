@@ -180,6 +180,7 @@ def get_items():
         
         # Execute query
         conn = get_db_connection()
+        print(query)
         rows = conn.run(query, params)
         
         # Convert rows to dictionaries
