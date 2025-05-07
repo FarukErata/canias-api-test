@@ -169,22 +169,23 @@ def get_items():
         required_filters = table_required_filters.get(table_name, [])
         
         query = f'SELECT * FROM "{table_name}"'
-        query+=' WHERE 1=1'
+        query+=' WHERE 1=1 '
         params = []
         
         where_conditions = []
         for column in required_filters:
             if column == 'DOCITEM' and 'DOCITEM' in data and isinstance(data['DOCITEM'], int) and data['DOCITEM'] != 0:
-                where_conditions.append(f'"{column}" = ?')
-                values=" AND '"+data['DOCITEM']+"'"
+                where_conditions.append(f' AND "{column}" = ?')
+                values="  '"+data['DOCITEM']+"'"
                 params.append(values)
             elif column in data and isinstance(data[column], str) and data[column] != "":
-                where_conditions.append(f'"{column}" = ?')
-                values=" AND '"+data[column]+"'"
+                where_conditions.append(f' AND "{column}" = ?')
+                values="  '"+data[column]+"'"
                 params.append(values)
         
         """ if where_conditions:
-            query +=" AND ".join(where_conditions) """
+            query +=" AND ".join(where_conditions) """ 
+        query+=where_conditions
         
         print(f"Secure query: {query}")
         print(f"With params: {params}")
