@@ -166,7 +166,7 @@ def get_items():
         where_conditions = []
         for column in required_filters:
             # For numeric parameters like DOCITEM, check differently
-            if column == 'DOCITEM' and 'DOCITEM' in data and isinstance(data['DOCITEM'], int) and data[column] != 0:
+            if column == 'DOCITEM' and 'DOCITEM' in data and isinstance(data['DOCITEM'], int) and data[column] !=0 :
                 where_conditions.append(f'"{column}" = ?')
                 params.append(data['DOCITEM'])
             # For string parameters, only add if non-empty
@@ -209,7 +209,6 @@ def get_items():
             'error': f'Database error: {str(e)}',
             'traceback': traceback.format_exc()
         }), 500
-
 
 
 @app.route('/static/swagger.json')
