@@ -176,7 +176,7 @@ def get_items():
                 params.append(data[column])
         
         if where_conditions:
-            query += " WHERE " + " AND ".join(where_conditions)
+            query += " WHERE 1=1 "+ " AND ".join(where_conditions)
         
         conn = get_db_connection()
         rows = conn.run(query, params)
