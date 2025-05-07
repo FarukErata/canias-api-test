@@ -176,15 +176,15 @@ def get_items():
         for column in required_filters:
             if column == 'DOCITEM' and 'DOCITEM' in data and isinstance(data['DOCITEM'], int) and data['DOCITEM'] != 0:
                 where_conditions.append(f'"{column}" = ?')
-                values="'"+data['DOCITEM']+"'"
+                values=" AND '"+data['DOCITEM']+"'"
                 params.append(values)
             elif column in data and isinstance(data[column], str) and data[column] != "":
                 where_conditions.append(f'"{column}" = ?')
-                values="'"+data[column]+"'"
+                values=" AND '"+data[column]+"'"
                 params.append(values)
         
-        if where_conditions:
-            query +=" AND ".join(where_conditions)
+        """ if where_conditions:
+            query +=" AND ".join(where_conditions) """
         
         print(f"Secure query: {query}")
         print(f"With params: {params}")
