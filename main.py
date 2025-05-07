@@ -138,7 +138,6 @@ def health_check():
 @app.route('/api/salservice', methods=['POST'])
 def get_items():
     try:
-        # Check if the request has JSON data
         if not request.is_json:
             return jsonify({'error': 'Request must be JSON'}), 400
             
@@ -149,75 +148,39 @@ def get_items():
         
         table_name = data.get('TABLE')
         
-        # Define required filter columns based on table
         table_required_filters = {
             'IASSALHEAD': ['DOCTYPE', 'DOCNUM'],
             'IASSALITEM': ['DOCTYPE', 'DOCNUM', 'DOCITEM', 'MATERIAL'],
             'IASCUSTOMER': ['CUSTOMER', 'CUSTNAME']
         }
         
-        # Define columns we know exist for each table (from your screenshots)
         table_columns = {
             'IASSALITEM': ['id', 'DOCTYPE', 'DOCNUM', 'DOCITEM', 'REFDOCTYPE', 'REFDOCNUM', 'REFITEMNUM', 'MATERIAL', 'QUANTITY'],
             'IASSALHEAD': ['id', 'DOCTYPE', 'DOCNUM', 'VALIDFROM', 'VALIDUNTIL', 'ISOFFCHAR', 'ISORDCHAR', 'ISDELCHAR', 'ISINVCHAR', 'CUSTOMER'],
             'IASCUSTOMER': ['id', 'CUSTOMER', 'CUSTNAME']
         }
         
-        # Get the columns for this table
-        expected_columns = table_columns.get(table_name, [])
-        
-        # Get required filters for the specified table
+        actual_columns = table_columns.get(table_name, [])
         required_filters = table_required_filters.get(table_name, [])
         
-        # Build basic query without WHERE clause first
         query = f'SELECT * FROM "{table_name}"'
         params = []
         
-        # Add filters - only include non-empty values
         where_conditions = []
         for column in required_filters:
-            # For numeric parameters like DOCITEM, don't include if it's 0
             if column == 'DOCITEM' and 'DOCITEM' in data and isinstance(data['DOCITEM'], int) and data['DOCITEM'] != 0:
                 where_conditions.append(f'"{column}" = ?')
                 params.append(data['DOCITEM'])
-            # For string parameters, only add if non-empty
             elif column in data and isinstance(data[column], str) and data[column] != "":
                 where_conditions.append(f'"{column}" = ?')
                 params.append(data[column])
         
-        # Add WHERE clause only if there are conditions
         if where_conditions:
             query += " WHERE " + " AND ".join(where_conditions)
         
-        # Debug output
-        print(f"Query: {query}")
-        print(f"Params: {params}")
-        
-        # Execute query
         conn = get_db_connection()
         rows = conn.run(query, params)
         
-        # For actual column order, let's try to get the columns from the database
-        try:
-            columns_query = f"""
-                SELECT column_name 
-                FROM information_schema.columns 
-                WHERE table_name = LOWER('{table_name}')
-                ORDER BY ordinal_position
-            """
-            columns_result = conn.run(columns_query)
-            actual_columns = [col[0] for col in columns_result]
-            
-            # If we couldn't get columns from the database, use our hardcoded list
-            if not actual_columns:
-                actual_columns = expected_columns
-        except:
-            # Fallback to our hardcoded column list
-            actual_columns = expected_columns
-            
-        print(f"Actual columns: {actual_columns}")
-        
-        # Convert rows to dictionaries with correct column mapping
         items = []
         for row in rows:
             item = {}
@@ -232,8 +195,6 @@ def get_items():
         import traceback
         error_msg = str(e)
         trace = traceback.format_exc()
-        print(f"Error: {error_msg}")
-        print(f"Traceback: {trace}")
         return jsonify({
             'error': f'Database error: {error_msg}',
             'traceback': trace
