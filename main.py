@@ -143,113 +143,90 @@ def get_items():
             return jsonify({'error': 'Request must be JSON'}), 400
             
         data = request.get_json()
-        print(f"Request data: {data}")
 
         if 'TABLE' not in data or not data.get('TABLE'):
             return jsonify({'error': 'Missing required parameter: TABLE'}), 400
         
         table_name = data.get('TABLE')
         
-        # Where şartına koyulcak alanlar
+        # Define required filter columns based on table
         table_required_filters = {
             'IASSALHEAD': ['DOCTYPE', 'DOCNUM'],
             'IASSALITEM': ['DOCTYPE', 'DOCNUM', 'DOCITEM', 'MATERIAL'],
             'IASCUSTOMER': ['CUSTOMER', 'CUSTNAME']
         }
         
+        # Define columns we know exist for each table (from your screenshots)
+        table_columns = {
+            'IASSALITEM': ['id', 'DOCTYPE', 'DOCNUM', 'DOCITEM', 'REFDOCTYPE', 'REFDOCNUM', 'REFITEMNUM', 'MATERIAL', 'QUANTITY'],
+            'IASSALHEAD': ['id', 'DOCTYPE', 'DOCNUM', 'VALIDFROM', 'VALIDUNTIL', 'ISOFFCHAR', 'ISORDCHAR', 'ISDELCHAR', 'ISINVCHAR', 'CUSTOMER'],
+            'IASCUSTOMER': ['id', 'CUSTOMER', 'CUSTNAME']
+        }
+        
+        # Get the columns for this table
+        expected_columns = table_columns.get(table_name, [])
+        
+        # Get required filters for the specified table
         required_filters = table_required_filters.get(table_name, [])
         
         # Build basic query without WHERE clause first
         query = f'SELECT * FROM "{table_name}"'
-        manual_query = f'SELECT * FROM "{table_name}"'
         params = []
         
-        # Add filters
+        # Add filters - only include non-empty values
         where_conditions = []
-        where_manual_conditions = []
         for column in required_filters:
-            # For numeric parameters like DOCITEM, check differently
-            if column == 'DOCITEM' and 'DOCITEM' in data and isinstance(data['DOCITEM'], int) and data[column] != 0:
+            # For numeric parameters like DOCITEM, don't include if it's 0
+            if column == 'DOCITEM' and 'DOCITEM' in data and isinstance(data['DOCITEM'], int) and data['DOCITEM'] != 0:
                 where_conditions.append(f'"{column}" = ?')
                 params.append(data['DOCITEM'])
-                # Add to manual query with the value directly
-                where_manual_conditions.append(f'"{column}" = {data["DOCITEM"]}')
             # For string parameters, only add if non-empty
             elif column in data and isinstance(data[column], str) and data[column] != "":
                 where_conditions.append(f'"{column}" = ?')
                 params.append(data[column])
-                # Add to manual query with the value directly
-                where_manual_conditions.append(f'"{column}" = \'{data[column]}\'')
         
         # Add WHERE clause only if there are conditions
         if where_conditions:
             query += " WHERE " + " AND ".join(where_conditions)
         
-        # Add WHERE clause to manual query
-        if where_manual_conditions:
-            manual_query += " WHERE " + " AND ".join(where_manual_conditions)
+        # Debug output
+        print(f"Query: {query}")
+        print(f"Params: {params}")
         
         # Execute query
         conn = get_db_connection()
         rows = conn.run(query, params)
         
-        # Try to get the actual column names
-        columns_query = f"""
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name = LOWER('{table_name}')
-            ORDER BY ordinal_position
-        """
-        columns_result = conn.run(columns_query)
-        db_columns = [col[0] for col in columns_result]
-        
-        # If we couldn't get columns from the database, use required_filters
-        if not db_columns:
-            db_columns = required_filters
+        # For actual column order, let's try to get the columns from the database
+        try:
+            columns_query = f"""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = LOWER('{table_name}')
+                ORDER BY ordinal_position
+            """
+            columns_result = conn.run(columns_query)
+            actual_columns = [col[0] for col in columns_result]
             
-        # We'll use the required columns for our response
-        result_columns = required_filters
+            # If we couldn't get columns from the database, use our hardcoded list
+            if not actual_columns:
+                actual_columns = expected_columns
+        except:
+            # Fallback to our hardcoded column list
+            actual_columns = expected_columns
+            
+        print(f"Actual columns: {actual_columns}")
         
-        # Convert to JSON format - safer approach
+        # Convert rows to dictionaries with correct column mapping
         items = []
         for row in rows:
             item = {}
-            # Map each column safely
-            for i, col_name in enumerate(result_columns):
-                # Find the position of this column in the db_columns list if possible
-                try:
-                    db_index = db_columns.index(col_name)
-                    # If this index exists in the row, use it
-                    if db_index < len(row):
-                        item[col_name] = row[db_index]
-                    else:
-                        item[col_name] = None
-                except ValueError:
-                    # Column not found in db_columns
-                    # As a fallback, try to use positional mapping if the index is within range
-                    if i < len(row):
-                        item[col_name] = row[i]
-                    else:
-                        item[col_name] = None
+            for i, col in enumerate(actual_columns):
+                if i < len(row):
+                    item[col] = row[i]
             items.append(item)
         
-        # Build safe debug info that won't cause errors
-        debug_info = {
-            "parameterized_query": query,
-            "manual_query": manual_query,
-            "params": params,
-            "row_count": len(rows),
-            "db_columns": db_columns,
-            "result_columns": result_columns,
-            "first_row_raw": str(rows[0]) if rows else None
-        }
-        
-        # Don't try to create a dict from the row, just include the raw data
-        
-        return jsonify({
-            "items": items,
-            "debug": debug_info
-        })
+        return jsonify(items)
     
     except Exception as e:
         import traceback
