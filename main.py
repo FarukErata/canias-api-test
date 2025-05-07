@@ -183,9 +183,9 @@ def get_items():
                 values="  '"+data[column]+"'"
                 params.append(values)
         
-        """ if where_conditions:
-            query +=" AND ".join(where_conditions) """ 
-        query+=where_conditions
+        if where_conditions:
+            query +=" AND 1=1 ".join(where_conditions) 
+        
         
         print(f"Secure query: {query}")
         print(f"With params: {params}")
