@@ -162,7 +162,7 @@ def get_items():
         
         actual_columns = table_columns.get(table_name, [])
         required_filters = table_required_filters.get(table_name, [])
-        
+        print(required_filters)
         query = f'SELECT * FROM "{table_name}"'
         params = []
         
