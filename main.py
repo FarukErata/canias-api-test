@@ -178,9 +178,11 @@ def get_items():
         if where_conditions:
             query += " WHERE " + " AND ".join(where_conditions)
         
+        print(f"Final query: {query}")
+        
         # Execute query
         conn = get_db_connection()
-        print(query)
+        
         rows = conn.run(query, params)
         
         # Convert rows to dictionaries
