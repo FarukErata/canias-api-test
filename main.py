@@ -160,41 +160,79 @@ def get_items():
         
         # Build basic query without WHERE clause first
         query = f'SELECT * FROM "{table_name}"'
+        manual_query = f'SELECT * FROM "{table_name}"'
         params = []
         
         # Add filters
         where_conditions = []
+        where_manual_conditions = []
         for column in required_filters:
             # For numeric parameters like DOCITEM, check differently
-            if column == 'DOCITEM' and 'DOCITEM' in data and isinstance(data['DOCITEM'], int) and data[column] !=0 :
+            if column == 'DOCITEM' and 'DOCITEM' in data and isinstance(data['DOCITEM'], int) and data[column] != 0:
                 where_conditions.append(f'"{column}" = ?')
                 params.append(data['DOCITEM'])
+                # Add to manual query with the value directly
+                where_manual_conditions.append(f'"{column}" = {data["DOCITEM"]}')
             # For string parameters, only add if non-empty
             elif column in data and isinstance(data[column], str) and data[column] != "":
                 where_conditions.append(f'"{column}" = ?')
                 params.append(data[column])
+                # Add to manual query with the value directly
+                where_manual_conditions.append(f'"{column}" = \'{data[column]}\'')
         
         # Add WHERE clause only if there are conditions
         if where_conditions:
             query += " WHERE " + " AND ".join(where_conditions)
         
+        # Add WHERE clause to manual query
+        if where_manual_conditions:
+            manual_query += " WHERE " + " AND ".join(where_manual_conditions)
         
-        print(f"query: {query}")
+        print(f"Parameterized query: {query}")  # Log the final SQL query
+        print(f"Manual query: {manual_query}")  # Log the manual query with values
+        
         # Execute query
         conn = get_db_connection()
-        
         rows = conn.run(query, params)
+        
+        print(f"Rows returned: {len(rows)}")  # Log number of rows returned
+        if rows:
+            print(f"First row sample: {rows[0]}")  # Log first row as sample
+        
+        # Try to get tables available in the database
+        tables_query = "SELECT schemaname, tablename FROM pg_tables"
+        tables = conn.run(tables_query)
         
         # Convert rows to dictionaries
         columns_query = f"""
             SELECT column_name 
             FROM information_schema.columns 
-            WHERE table_name = '{table_name}'
+            WHERE table_name = LOWER('{table_name}')
             ORDER BY ordinal_position
         """
         columns_result = conn.run(columns_query)
         columns = [col[0] for col in columns_result]
-        print(f"Columns from DB: {columns}")
+        
+        # If no columns found, try alternative method
+        if not columns:
+            print("No columns found, trying alternative method")
+            try:
+                alt_columns_query = f"""
+                    SELECT attname FROM pg_attribute 
+                    WHERE attrelid = (SELECT oid FROM pg_class WHERE relname = LOWER('{table_name}'))
+                    AND attnum > 0 AND NOT attisdropped
+                    ORDER BY attnum
+                """
+                alt_columns_result = conn.run(alt_columns_query)
+                columns = [col[0] for col in alt_columns_result]
+                print(f"Alternative columns method result: {columns}")
+            except Exception as e:
+                print(f"Alternative columns method error: {e}")
+        
+        # If still no columns, use required filters as fallback
+        if not columns:
+            print("Using required filters as fallback column names")
+            columns = required_filters
         
         # Convert to JSON format
         items = []
@@ -205,13 +243,30 @@ def get_items():
                     item[col] = row[i]
             items.append(item)
         
-        return jsonify(items)
+        
+        # Include debug info in the response
+        return jsonify({
+            "items": items,
+            "debug": {
+                "parameterized_query": query,
+                "params": params,
+                "manual_query": manual_query,
+                "row_count": len(rows),
+                "columns": columns,
+                "first_row_raw": str(rows[0]) if rows else None,
+                "available_tables_sample": [f"{t[0]}.{t[1]}" for t in tables[:5]]
+            }
+        })
     
     except Exception as e:
         import traceback
+        error_msg = str(e)
+        trace = traceback.format_exc()
+        print(f"Error: {error_msg}")  # Log the error
+        print(f"Traceback: {trace}")  # Log the traceback
         return jsonify({
-            'error': f'Database error: {str(e)}',
-            'traceback': traceback.format_exc()
+            'error': f'Database error: {error_msg}',
+            'traceback': trace
         }), 500
 
 
