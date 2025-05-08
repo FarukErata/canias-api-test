@@ -177,7 +177,7 @@ def get_items():
             elif column in data and isinstance(data[column], str) and data[column] != "":
                 # Escape single quotes in string values
                 safe_value = data[column].replace("'", "''")
-                query += f' AND "{column}" = \'{safe_value}\''
+                query += f' AND "{column}" LIKE \'%{safe_value}%\''
         
         print(f"Direct query: {query}")
         
