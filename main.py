@@ -197,7 +197,7 @@ def get_items():
                         item[col] = row[i]
             items.append(item)
 
-        print(f"items {items}")
+        
         return jsonify(items)
     
     except Exception as e:
