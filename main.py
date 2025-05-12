@@ -3,6 +3,8 @@ from flask_cors import CORS
 from datetime import datetime
 from flask_swagger_ui import get_swaggerui_blueprint
 
+from decimal import Decimal
+
 import os
 import pg8000.native
 
@@ -189,9 +191,12 @@ def get_items():
             item = {}
             for i, col in enumerate(actual_columns):
                 if i < len(row):
-                    item[col] = row[i]
+                     if isinstance(row[i], Decimal):
+                        item[col] = float(row[i])
+                     else:
+                        item[col] = row[i]
             items.append(item)
-            
+
         print(f"items {items}")
         return jsonify(items)
     
