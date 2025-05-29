@@ -158,7 +158,7 @@ def get_items():
         table_required_filters = {
             'IASSALHEAD': ['DOCTYPE', 'DOCNUM'],
             'IASSALITEM': ['DOCTYPE', 'DOCNUM', 'DOCITEM', 'MATERIAL'],
-            'IASCUSTOMER': ['CUSTOMER', 'CUSTNAME'],
+            'IASCUSTOMER': ['CUSTOMER', 'CUSTNAME','CITY'],
             'IASINVSTOCK': ['MATERIAL', 'WAREHOUSE', 'STOCKPLACE', 'STEXT'],
             'IASMATBASIC': ['MATERIAL', 'SKUNIT', 'MATTYPE', 'NAME']
         }
@@ -166,7 +166,7 @@ def get_items():
         table_columns = {
             'IASSALITEM': ['id', 'DOCTYPE', 'DOCNUM', 'DOCITEM', 'REFDOCTYPE', 'REFDOCNUM', 'REFITEMNUM', 'MATERIAL', 'QUANTITY'],
             'IASSALHEAD': ['id', 'DOCTYPE', 'DOCNUM', 'VALIDFROM', 'VALIDUNTIL', 'ISOFFCHAR', 'ISORDCHAR', 'ISDELCHAR', 'ISINVCHAR', 'CUSTOMER'],
-            'IASCUSTOMER': ['id', 'CUSTOMER', 'CUSTNAME'],
+            'IASCUSTOMER': ['id', 'CUSTOMER', 'CUSTNAME','CITY'],
             'IASINVSTOCK': ['id', 'MATERIAL', 'AVAILSTOCK', 'WAREHOUSE', 'STOCKPLACE', 'STEXT'],
             'IASMATBASIC': ['id', 'MATERIAL', 'SKUNIT', 'MATTYPE', 'BRUTWEIGHT', 'NAME']
         } 
