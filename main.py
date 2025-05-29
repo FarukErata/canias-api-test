@@ -151,26 +151,22 @@ def get_items():
         table_name = data.get('TABLE')
         
         # Validate table name against allowed tables only
-        allowed_tables = ['IASSALHEAD', 'IASSALITEM', 'IASCUSTOMER','IASINVSTOCK' ,'IASMATBASIC']
+        allowed_tables = ['IASSALHEAD', 'IASSALITEM', 'IASCUSTOMER']
         if table_name not in allowed_tables:
             return jsonify({'error': 'Invalid table name'}), 400
         
         table_required_filters = {
             'IASSALHEAD': ['DOCTYPE', 'DOCNUM'],
             'IASSALITEM': ['DOCTYPE', 'DOCNUM', 'DOCITEM', 'MATERIAL'],
-            'IASCUSTOMER': ['CUSTOMER', 'CUSTNAME'],
-            'IASINVSTOCK': ['MATERIAL', 'WAREHOUSE', 'STOCKPLACE', 'STEXT'],
-            'IASMATBASIC': ['MATERIAL', 'SKUNIT', 'MATTYPE', 'NAME']
+            'IASCUSTOMER': ['CUSTOMER', 'CUSTNAME']
         }
         
         table_columns = {
             'IASSALITEM': ['id', 'DOCTYPE', 'DOCNUM', 'DOCITEM', 'REFDOCTYPE', 'REFDOCNUM', 'REFITEMNUM', 'MATERIAL', 'QUANTITY'],
             'IASSALHEAD': ['id', 'DOCTYPE', 'DOCNUM', 'VALIDFROM', 'VALIDUNTIL', 'ISOFFCHAR', 'ISORDCHAR', 'ISDELCHAR', 'ISINVCHAR', 'CUSTOMER'],
-            'IASCUSTOMER': ['id', 'CUSTOMER', 'CUSTNAME'],
-            'IASINVSTOCK': ['id', 'MATERIAL', 'AVAILSTOCK', 'WAREHOUSE', 'STOCKPLACE', 'STEXT'],
-            'IASMATBASIC': ['id', 'MATERIAL', 'SKUNIT', 'MATTYPE', 'BRUTWEIGHT', 'NAME']
-        } 
-
+            'IASCUSTOMER': ['id', 'CUSTOMER', 'CUSTNAME']
+        }
+        
         actual_columns = table_columns.get(table_name, [])
         required_filters = table_required_filters.get(table_name, [])
         
